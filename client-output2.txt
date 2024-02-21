@@ -1,0 +1,20 @@
+WARNING flwr 2024-02-21 20:06:10,943 | logger.py:118 | 
+        DEPRECATED FEATURE: flwr.client.start_numpy_client() is deprecated. 
+	Instead, use `flwr.client.start_client()` by ensuring you first call the `.to_client()` method as shown below: 
+	flwr.client.start_client(
+		server_address='<IP>:<PORT>',
+		client=FlowerClient().to_client(), # <-- where FlowerClient is of type flwr.client.NumPyClient object
+	)
+	Using `start_numpy_client()` is deprecated.
+
+        This is a deprecated feature. It will be removed
+        entirely in future versions of Flower.
+        
+INFO flwr 2024-02-21 20:06:10,947 | grpc.py:52 | Opened insecure gRPC connection (no certificates were passed)
+DEBUG flwr 2024-02-21 20:06:10,947 | connection.py:55 | ChannelConnectivity.IDLE
+DEBUG flwr 2024-02-21 20:06:10,948 | connection.py:55 | ChannelConnectivity.CONNECTING
+DEBUG flwr 2024-02-21 20:06:10,950 | connection.py:55 | ChannelConnectivity.READY
+DEBUG flwr 2024-02-21 20:07:06,236 | connection.py:220 | gRPC channel closed
+INFO flwr 2024-02-21 20:07:06,236 | app.py:398 | Disconnect and shut down
+Files already downloaded and verified
+Files already downloaded and verified
