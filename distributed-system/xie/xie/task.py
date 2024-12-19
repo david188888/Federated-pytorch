@@ -1,9 +1,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision import transforms 
 from torch.utils.data import DataLoader
-import torchvision.datasets as datasets
+from flwr_datasets import FederatedDataset
+from flwr_datasets.partitioner import IidPartitioner
+from torch.utils.data import DataLoader
+from torchvision.transforms import Compose, Normalize, ToTensor
+from collections import OrderedDict
+from torchvision.datasets import MNIST
+from sklearn.model_selection import train_test_split
+
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -27,13 +33,52 @@ class Net(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+    
+    
+
+def get_weights(net):
+    return [val.cpu().numpy() for _, val in net.state_dict().items()]
+
+
+def set_weights(net, parameters):
+    params_dict = zip(net.state_dict().keys(), parameters)
+    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+    net.load_state_dict(state_dict, strict=True)
+
+
+
+fds = None  # Cache FederatedDataset
+
+
+def load_data(partition_id: int, num_partitions: int, batch_size: int):
+    """Load partition data."""
+    # 手动下载数据集到本地
+    transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
+    dataset = MNIST(root='./data', train=True, download=True, transform=transform)
+    
+    # 将数据集划分为多个分区
+    indices = list(range(len(dataset)))
+    partition_size = len(indices) // num_partitions
+    partition_indices = indices[partition_id * partition_size:(partition_id + 1) * partition_size]
+    
+    # 划分训练和测试数据
+    train_indices, test_indices = train_test_split(partition_indices, test_size=0.2, random_state=42)
+    
+    train_subset = torch.utils.data.Subset(dataset, train_indices)
+    test_subset = torch.utils.data.Subset(dataset, test_indices)
+    
+    trainloader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+    testloader = DataLoader(test_subset, batch_size=batch_size)
+    
+    return trainloader, testloader
+
 
     
-    
-def train(net, trainloader, epoch):
+def train(net, trainloader, epoch,testloader):
+    net = net.to(DEVICE)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(),lr = 0.001, momentum=0.9)
-    
+    net.train()
     for i in range(epoch):
         print("Epoch {} Start training".format(i + 1))
         j = 0
@@ -46,10 +91,16 @@ def train(net, trainloader, epoch):
             optimizer.step()
             if j % 100 == 0:
                 print("Loss: {:.5f}".format(loss.item()))
+    
+    val_loss, val_accuracy = test(net, testloader)
+    print("Epoch {} finished, val_loss: {:.5f}, val_accuracy: {:.5f}".format(i + 1, val_loss, val_accuracy))
+    result = {'val_loss': val_loss, 'val_accuracy': val_accuracy}
+    return result
 
             
             
 def test(net, testloader):
+    net = net.to(DEVICE)
     criterion = nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     with torch.no_grad():
@@ -62,33 +113,14 @@ def test(net, testloader):
             
     return loss/len(testloader.dataset), correct/total
             
-            
-            
-def load_data():
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))  
-    ])
-    trainset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    testset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-    return DataLoader(trainset, batch_size=32, shuffle=True), DataLoader(testset)
 
 
-def load_model():
-    return Net().to(DEVICE)
 
 
-if __name__ == '__main__':
-    trainloader, testloader = load_data()
-    net = load_model()
-    train(net, trainloader, 3)
-    loss, accuracy = test(net, testloader)
-    print(f'Loss: {loss:.5f}, Accuracy: {accuracy:.3f}')
-            
-            
-            
-    
-    
-    
-        
-    
+
+
+
+
+
+
+
