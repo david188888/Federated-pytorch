@@ -50,10 +50,10 @@ def set_weights(net, parameters):
 fds = None  # Cache FederatedDataset
 
 
-def load_data(partition_id: int, num_partitions: int, batch_size: int):
+def load_data_non_iid(partition_id: int, num_partitions: int, batch_size: int):
     """Load partition data."""
     # 手动下载数据集到本地
-    transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
+    transform = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])
     dataset = MNIST(root='./data', train=True, download=False, transform=transform)
     
     # 将数据集划分为多个分区
@@ -61,6 +61,33 @@ def load_data(partition_id: int, num_partitions: int, batch_size: int):
     partition_size = len(indices) // num_partitions
     partition_indices = indices[partition_id * partition_size:(partition_id + 1) * partition_size]
     
+    # 划分训练和测试数据
+    train_indices, test_indices = train_test_split(partition_indices, test_size=0.2, random_state=42)
+    
+    train_subset = torch.utils.data.Subset(dataset, train_indices)
+    test_subset = torch.utils.data.Subset(dataset, test_indices)
+    
+    trainloader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+    testloader = DataLoader(test_subset, batch_size=batch_size)
+    
+    return trainloader, testloader
+
+def load_data_iid(partition_id: int, num_partitions: int, batch_size: int):
+    """Load partition data."""
+    # 手动下载数据集到本地
+    transform = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])
+    dataset = MNIST(root='./data', train=True, download=False, transform=transform)
+    
+    # 将数据集划分为多个分区
+    label_indices = {i: [] for i in range(10)}
+    for idx, (_, label) in enumerate(dataset):
+        label_indices[label].append(idx)   # keep the label with the data
+    num_items = len(dataset) // num_partitions // 10
+
+    partition_indices = []
+    for _, data in label_indices.items():
+        partition_indices.extend(data[partition_id*num_items:(partition_id+1)*num_items]) # give each client the same number of items of each class
+
     # 划分训练和测试数据
     train_indices, test_indices = train_test_split(partition_indices, test_size=0.2, random_state=42)
     

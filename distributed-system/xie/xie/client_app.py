@@ -1,8 +1,9 @@
 from flwr.client import ClientApp, NumPyClient
 from flwr.common import Context, NDArrays
-from xie.task import Net, get_weights, load_data, set_weights, test, train
+from xie.task import Net, get_weights, load_data_non_iid, set_weights, test, train
 import torch
 from typing import Dict, List, Tuple
+import time
 
 
 # Define Flower client
@@ -20,13 +21,16 @@ class FlowerClient(NumPyClient):
     
     def fit(self, parameters, config):
         set_weights(self.net, parameters)
+        start_time = time.time()
         loss = train(
             net=self.net,
             trainloader=self.train_dataset,
             epoch=self.local_epochs,
         )
+        end_time = time.time()
+        training_time = end_time - start_time
         print(f"Loss: {loss}")
-        return get_weights(self.net), len(self.train_dataset), {"loss": float(loss)}
+        return get_weights(self.net), len(self.train_dataset), {"loss": float(loss), "time": training_time}
     
     
     def evaluate(self, parameters, config) -> Tuple[float, int, Dict[str, float]]:
@@ -46,7 +50,7 @@ def client_fn(context: Context):
     num_partitions = context.node_config["num-partitions"]
     
     batch_size = context.run_config["batch-size"]
-    trainloader, valloader = load_data(partition_id, num_partitions,batch_size)
+    trainloader, valloader = load_data_non_iid(partition_id, num_partitions,batch_size)
     local_epochs = context.run_config["local-epochs"]
 
     # Return Client instance
