@@ -1,0 +1,5 @@
+flwr==1.13.1
+flwr_datasets==0.4.0
+scikit_learn==1.4.2
+torch==2.5.1
+torchvision==0.20.1

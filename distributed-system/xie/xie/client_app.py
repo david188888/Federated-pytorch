@@ -1,9 +1,8 @@
 from flwr.client import ClientApp, NumPyClient
-from flwr.common import Context
+from flwr.common import Context, NDArrays
 from xie.task import Net, get_weights, load_data, set_weights, test, train
 import torch
-
-
+from typing import Dict, List, Tuple
 
 
 # Define Flower client
@@ -21,19 +20,23 @@ class FlowerClient(NumPyClient):
     
     def fit(self, parameters, config):
         set_weights(self.net, parameters)
-        result = train(
-            net = self.net,
-            trainloader = self.train_dataset,
-            epoch = self.local_epochs,
-            testloader = self.test_dataset
+        loss = train(
+            net=self.net,
+            trainloader=self.train_dataset,
+            epoch=self.local_epochs,
         )
-        return get_weights(self.net), len(self.train_dataset), result
+        print(f"Loss: {loss}")
+        return get_weights(self.net), len(self.train_dataset), {"loss": float(loss)}
     
     
-    def evaluate(self, parameters, config):
+    def evaluate(self, parameters, config) -> Tuple[float, int, Dict[str, float]]:
+        """Return evaluation loss, number of samples, and a dict with additional metrics."""
         set_weights(self.net, parameters)
         loss, accuracy = test(self.net, testloader=self.test_dataset)
-        return loss, len(self.test_dataset), {'accuracy': accuracy}
+        samples = len(self.test_dataset)
+        metrics = {"accuracy": float(accuracy)}
+        print(f"Evaluation - Loss: {loss}, Accuracy: {accuracy}")
+        return float(loss), samples, metrics
 
     
 def client_fn(context: Context):
@@ -54,4 +57,4 @@ def client_fn(context: Context):
 app = ClientApp(
     client_fn,
 )
-  
+

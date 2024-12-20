@@ -54,7 +54,7 @@ def load_data(partition_id: int, num_partitions: int, batch_size: int):
     """Load partition data."""
     # 手动下载数据集到本地
     transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
-    dataset = MNIST(root='./data', train=True, download=True, transform=transform)
+    dataset = MNIST(root='./data', train=True, download=False, transform=transform)
     
     # 将数据集划分为多个分区
     indices = list(range(len(dataset)))
@@ -74,11 +74,12 @@ def load_data(partition_id: int, num_partitions: int, batch_size: int):
 
 
     
-def train(net, trainloader, epoch,testloader):
+def train(net, trainloader, epoch):
     net = net.to(DEVICE)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(),lr = 0.001, momentum=0.9)
     net.train()
+    running_loss = 0.0
     for i in range(epoch):
         print("Epoch {} Start training".format(i + 1))
         j = 0
@@ -89,13 +90,13 @@ def train(net, trainloader, epoch,testloader):
             loss = criterion(output, label.to(DEVICE))
             loss.backward()
             optimizer.step()
+            running_loss += loss.item()
             if j % 100 == 0:
                 print("Loss: {:.5f}".format(loss.item()))
     
-    val_loss, val_accuracy = test(net, testloader)
-    print("Epoch {} finished, val_loss: {:.5f}, val_accuracy: {:.5f}".format(i + 1, val_loss, val_accuracy))
-    result = {'val_loss': val_loss, 'val_accuracy': val_accuracy}
-    return result
+    avg_loss = float(running_loss / len(trainloader))
+
+    return avg_loss
 
             
             
@@ -111,8 +112,10 @@ def test(net, testloader):
             total += label.size(0)
             correct += (predicted == label.to(DEVICE)).sum().item()
             
-    return loss/len(testloader.dataset), correct/total
-            
+    loss = float(loss/len(testloader.dataset))
+    accuracy = float(correct/total)
+    return loss, accuracy
+
 
 
 
