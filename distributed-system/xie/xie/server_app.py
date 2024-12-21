@@ -11,12 +11,14 @@ import matplotlib
 matplotlib.use('Agg')  # 使用非GUI后端
 import time
 
-total_round = 1
+total_round = 0
 training_losses = []
 training_times = []
+evaluation_accuracy = []
 
 def fit_metrics_aggregator(metrics: List[Tuple[int, Dict[str, float]]]) -> Dict[str, float]:
     global num_rounds, total_round
+    total_round += 1
     losses = [metric["loss"] for _, metric in metrics]
     times = [metric["time"] for _, metric in metrics]
     
@@ -26,43 +28,36 @@ def fit_metrics_aggregator(metrics: List[Tuple[int, Dict[str, float]]]) -> Dict[
     training_losses.append(avg_loss)
     training_times.append(avg_time)
     if total_round == num_rounds:
-        plot_training_loss()
-        plot_training_time()
-    total_round += 1
+        name = "idd, {} client, {} round".format(len(metrics), num_rounds)
+        with open('training_log.txt', 'a') as f:
+            f.write(name + '\n')
+            f.write(str(training_losses))
+            f.write('\n')
+            f.write(str(training_times))
+            f.write('\n')
+    
     
     return {"loss": avg_loss}
 
 def weighted_average(metrics: List[Tuple[int, Dict[str, float]]]) -> Dict[str, float]:
     """Compute weighted average of metrics."""
     # Multiply accuracy of each client by number of examples used
+    global num_rounds, total_round
     accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
     examples = [num_examples for num_examples, _ in metrics]
+
+    if total_round == num_rounds:
+        name = "non-idd, {} client, {} round".format(len(metrics), num_rounds)
+        with open('training_log.txt', 'a') as f:
+            f.write(str(evaluation_accuracy))
+            f.write('\n')
+
+    evaluation_accuracy.append(sum(accuracies) / sum(examples))
 
     # Aggregate and return custom metric (weighted average)
     return {
         "accuracy": sum(accuracies) / sum(examples)
     }
-
-def plot_training_loss():
-    plt.figure()
-    plt.plot(training_losses, label='Training Loss')
-    plt.xlabel('Round')
-    plt.ylabel('Loss')
-    plt.title('Training Loss per Round')
-    plt.legend()
-    plt.savefig('training_loss.png')
-    plt.close()
-
-
-def plot_training_time():
-    plt.figure()
-    plt.plot(training_times, label='Training Time')
-    plt.xlabel('Round')
-    plt.ylabel('Time (s)')
-    plt.title('Training Time per Round')
-    plt.legend()
-    plt.savefig('training_time.png')
-    plt.close()
 
 
 def server_fn(context: Context) -> ServerAppComponents:
@@ -89,26 +84,5 @@ def server_fn(context: Context) -> ServerAppComponents:
     return ServerAppComponents(strategy=strategy, config=config)
 
 
-class MyServerApp(ServerApp):
-    def on_fit_round_end(self, round_number, results, failures):
-        # 在每一轮结束时记录损失和训练时间
-        # 假设每个结果中有损失信息，并且你可以从结果中提取训练时间
-        losses = [result.metrics["loss"] for result in results]
-        times = [result.metrics["time"] for result in results]
-
-        avg_loss = sum(losses) / len(losses)
-        avg_time = sum(times) / len(times)
-        
-        training_losses.append(avg_loss)  # 记录每轮的平均损失
-        training_times.append(avg_time)    # 记录每轮的平均训练时间
-        
-        # 如果是最后一轮，可以绘制图表
-        if round_number == self.config["num_rounds"] - 1:
-            print("images are saved!")
-            plot_training_loss()
-            plot_training_time()
-
-
-
 # Create ServerApp
-app = MyServerApp(server_fn=server_fn)
+app = ServerApp(server_fn=server_fn)

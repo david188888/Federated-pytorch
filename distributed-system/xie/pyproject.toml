@@ -23,8 +23,8 @@ serverapp = "xie.server_app:app"
 clientapp = "xie.client_app:app"
 
 [tool.flwr.app.config]
-num-server-rounds = 30
-fraction-fit = 0.8
+num-server-rounds = 25
+fraction-fit = 1.0
 local-epochs = 1
 batch-size = 32
 
@@ -32,4 +32,4 @@ batch-size = 32
 default = "local-simulation"
 
 [tool.flwr.federations.local-simulation]
-options.num-supernodes = 10
+options.num-supernodes = 20

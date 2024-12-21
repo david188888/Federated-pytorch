@@ -1,6 +1,6 @@
 from flwr.client import ClientApp, NumPyClient
 from flwr.common import Context, NDArrays
-from xie.task import Net, get_weights, load_data_non_iid, set_weights, test, train
+from xie.task import Net, get_weights, load_data_non_iid, set_weights, test, train, load_data_iid
 import torch
 from typing import Dict, List, Tuple
 import time
@@ -50,7 +50,7 @@ def client_fn(context: Context):
     num_partitions = context.node_config["num-partitions"]
     
     batch_size = context.run_config["batch-size"]
-    trainloader, valloader = load_data_non_iid(partition_id, num_partitions,batch_size)
+    trainloader, valloader = load_data_iid(partition_id, num_partitions,batch_size)
     local_epochs = context.run_config["local-epochs"]
 
     # Return Client instance

@@ -9,6 +9,10 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 from collections import OrderedDict
 from torchvision.datasets import MNIST
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # 使用非GUI后端
+import time
 
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -120,13 +124,11 @@ def train(net, trainloader, epoch):
             running_loss += loss.item()
             if j % 100 == 0:
                 print("Loss: {:.5f}".format(loss.item()))
-    
+
     avg_loss = float(running_loss / len(trainloader))
 
     return avg_loss
 
-            
-            
 def test(net, testloader):
     net = net.to(DEVICE)
     criterion = nn.CrossEntropyLoss()
@@ -143,9 +145,57 @@ def test(net, testloader):
     accuracy = float(correct/total)
     return loss, accuracy
 
+def train_centralize(net, trainloader, epoch):
+    net = net.to(DEVICE)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(net.parameters(),lr = 0.001, momentum=0.9)
+    net.train()
+    loss_lst = []
+    time_lst = []
+    acc_lst = []
+    for i in range(epoch):
+        print("Epoch {} Start training".format(i + 1))
+        j = 0
+        epoch_loss = 0.0
+        start_time = time.time()
+        for image, label in trainloader:
+            j += 1
+            optimizer.zero_grad()
+            output = net(image.to(DEVICE))
+            loss = criterion(output, label.to(DEVICE))
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item()
+            if j % 100 == 0:
+                print("Loss: {:.5f}".format(loss.item()))
+        end_time = time.time()
+        loss, accuracy = test(net, testloader)
+        loss_lst.append(epoch_loss / len(trainloader))
+        time_lst.append(end_time - start_time)
+        acc_lst.append(accuracy)
+        
+    return loss_lst, time_lst, acc_lst
 
-
-
+if __name__ == "__main__":
+    net = Net()
+    transform = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])
+    train_dataset = MNIST(root='distributed-system/xie/data', train=True, download=False, transform=transform)
+    test_dataset = MNIST(root='distributed-system/xie/data', train=False, download=False, transform=transform)
+    trainloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    testloader = DataLoader(test_dataset)
+    loss_lst, time_lst, acc_lst = train_centralize(net, trainloader, 25)
+    loss, accuracy = test(net, testloader)
+    print(f'Loss: {loss:.5f}, Accuracy: {accuracy:.3f}')
+    
+    name = "Centralize"
+    with open('distributed-system/xie/training_log.txt', 'a') as f:
+        f.write(name + '\n')
+        f.write(str(loss_lst))
+        f.write('\n')
+        f.write(str(time_lst))
+        f.write('\n')
+        f.write(str(acc_lst))
+        f.write('\n')
 
 
 
