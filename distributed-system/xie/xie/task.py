@@ -9,9 +9,6 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 from collections import OrderedDict
 from torchvision.datasets import MNIST
 from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')  # 使用非GUI后端
 import time
 
 
@@ -56,16 +53,16 @@ fds = None  # Cache FederatedDataset
 
 def load_data_non_iid(partition_id: int, num_partitions: int, batch_size: int):
     """Load partition data."""
-    # 手动下载数据集到本地
+    # download the dataset to local
     transform = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])
     dataset = MNIST(root='./data', train=True, download=False, transform=transform)
     
-    # 将数据集划分为多个分区
+    # split the dataset into multiple partitions
     indices = list(range(len(dataset)))
     partition_size = len(indices) // num_partitions
     partition_indices = indices[partition_id * partition_size:(partition_id + 1) * partition_size]
     
-    # 划分训练和测试数据
+    # split the training and test data
     train_indices, test_indices = train_test_split(partition_indices, test_size=0.2, random_state=42)
     
     train_subset = torch.utils.data.Subset(dataset, train_indices)
@@ -78,11 +75,11 @@ def load_data_non_iid(partition_id: int, num_partitions: int, batch_size: int):
 
 def load_data_iid(partition_id: int, num_partitions: int, batch_size: int):
     """Load partition data."""
-    # 手动下载数据集到本地
+    # download the dataset to local
     transform = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])
     dataset = MNIST(root='./data', train=True, download=False, transform=transform)
     
-    # 将数据集划分为多个分区
+    # split the dataset into multiple partitions iid
     label_indices = {i: [] for i in range(10)}
     for idx, (_, label) in enumerate(dataset):
         label_indices[label].append(idx)   # keep the label with the data
@@ -92,7 +89,7 @@ def load_data_iid(partition_id: int, num_partitions: int, batch_size: int):
     for _, data in label_indices.items():
         partition_indices.extend(data[partition_id*num_items:(partition_id+1)*num_items]) # give each client the same number of items of each class
 
-    # 划分训练和测试数据
+    # split the training and test data
     train_indices, test_indices = train_test_split(partition_indices, test_size=0.2, random_state=42)
     
     train_subset = torch.utils.data.Subset(dataset, train_indices)

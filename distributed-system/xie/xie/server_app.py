@@ -5,10 +5,6 @@ from xie.task import Net, get_weights
 from typing import List, Tuple, Dict, Optional
 from logging import INFO
 import flwr as fl
-
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')  # 使用非GUI后端
 import time
 
 total_round = 0
